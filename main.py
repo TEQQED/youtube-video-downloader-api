@@ -45,6 +45,7 @@ def get_video_info(url):
             "author": yt.author,
             "length": yt.length,
             "views": yt.views,
+            "thumbnail": yt.thumbnail_url,
             "description": yt.description,
             "publish_date": yt.publish_date
         }
