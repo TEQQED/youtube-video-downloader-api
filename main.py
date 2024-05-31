@@ -90,7 +90,7 @@ async def video_info():
 
 if __name__ == '__main__':
     if(os.environ.get('APP')):
-        serve(app, host="0.0.0.0", port=os.environ.get('PORT', 3001))
+        app.run(host="0.0.0.0", port=os.environ.get('PORT', 3001))
     else:
         ssl._create_default_https_context = ssl._create_unverified_context
         app.run(debug=True, port=8000)
