@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import io
+import json
 import os
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
@@ -9,8 +10,9 @@ from firebase_admin import credentials, firestore, storage
 def getCred(): 
   firebase_key_base64 = os.environ.get('FIREBASE_KEY_BASE64')
   if firebase_key_base64:
-    firebase_key_json = base64.b64decode(firebase_key_base64)
-    return credentials.Certificate(io.BytesIO(firebase_key_json))
+    firebase_key_json = base64.b64decode(firebase_key_base64).decode('utf-8')
+    firebase_key_dict = json.loads(firebase_key_json)
+    return credentials.Certificate(firebase_key_dict)
   return credentials.Certificate('key.json')
   
   
