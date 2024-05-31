@@ -7,10 +7,13 @@ from pytube import YouTube
 import re
 import os
 from waitress import serve
+from quart_cors import cors
+
 
 from firebase import FIREBASE_CDN_URL, upload_file
 
 app = Quart(__name__)
+app = cors(app, allow_origin="*")
 
 async def download_and_upload_video(url, resolution, path):
     byte_stream, error_message = await download_video(url, resolution)
