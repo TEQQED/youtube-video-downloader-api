@@ -37,3 +37,4 @@ async def upload_file(byte_stream, path):
   byte_stream.seek(0)
   blob.upload_from_file(byte_stream, content_type="video/mp4")
   print(blob.public_url)
+  blob.make_public()
