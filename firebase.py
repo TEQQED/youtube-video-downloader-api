@@ -27,10 +27,13 @@ db = firestore.client()
 bucket = storage.bucket()
 
 def FIREBASE_CDN_URL(path):
-    return f'https://firebasestorage.googleapis.com/v0/b/sensorium-ec889.appspot.com/o/{path}?alt=media&token=f7f0dbc1-941d-4dfc-9760-568f07b71f8e'
+  return f'https://storage.googleapis.com/sensorium-ec889.appspot.com/{path}'
+
 
 async def upload_file(byte_stream, path):
-    bucket = storage.bucket()
-    blob = bucket.blob(path)
-    byte_stream.seek(0)
-    blob.upload_from_file(byte_stream, content_type="video/mp4")
+  bucket = storage.bucket()
+  blob = bucket.blob(path)
+
+  byte_stream.seek(0)
+  blob.upload_from_file(byte_stream, content_type="video/mp4")
+  print(blob.public_url)
