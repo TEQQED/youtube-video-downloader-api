@@ -19,7 +19,7 @@ async def download_and_upload_video(url, resolution, path):
     byte_stream, error_message = await download_video(url, resolution)
     if byte_stream:
         await upload_file(byte_stream, path)
-    
+
     if(error_message):
         print(error_message)
 
@@ -51,6 +51,7 @@ def get_video_info(url):
         }
         return video_info, None
     except Exception as e:
+        print(e)
         return None, str(e)
 
 def is_valid_youtube_url(url):
@@ -61,32 +62,32 @@ def is_valid_youtube_url(url):
 async def download_by_resolution(resolution):
     data = await request.get_json()
     url = data.get('url')
-    
+
     if not url:
         return jsonify({"error": "Missing 'url' parameter in the request body."}), 400
 
     if not is_valid_youtube_url(url):
         return jsonify({"error": "Invalid YouTube URL."}), 400
-    
+
     path = f'youtube-videos/{str(uuid4())}.mp4'
-    
+
     asyncio.create_task(download_and_upload_video(url, resolution, path))
-    
+
     return jsonify({"message": f"Video download started", "url": FIREBASE_CDN_URL(path)}), 200
 
 @app.route('/video_info', methods=['POST'])
 async def video_info():
     data = await request.get_json()
     url = data.get('url')
-    
+
     if not url:
         return jsonify({"error": "Missing 'url' parameter in the request body."}), 400
 
     if not is_valid_youtube_url(url):
         return jsonify({"error": "Invalid YouTube URL."}), 400
-    
+
     video_info, error_message = get_video_info(url)
-    
+
     if video_info:
         return jsonify(video_info), 200
     else:
