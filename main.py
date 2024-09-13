@@ -1,14 +1,17 @@
 import asyncio
 import io
+import json
 import ssl
 from uuid import uuid4
 from quart import Quart, request, jsonify
 import pytubefix
 import re
 import os
+import requests
 from waitress import serve
 from quart_cors import cors
-
+import http.client
+from werkzeug.utils import secure_filename
 from firebase import FIREBASE_CDN_URL, upload_file
 
 app = Quart(__name__)
@@ -24,34 +27,107 @@ async def download_and_upload_video(url, resolution, path):
 
 async def download_video(url, resolution):
     try:
-        yt = pytubefix.YouTube(url)
-        stream = yt.streams.filter(progressive=True, file_extension='mp4', resolution=resolution).first()
-        if stream:
-            byte_stream = io.BytesIO()
-            await asyncio.get_event_loop().run_in_executor(None, stream.stream_to_buffer, byte_stream)
-            byte_stream.seek(0)  # Reset the stream position to the beginning
-            return byte_stream, None
-        else:
+        url = url.replace("https://www.youtube.com/watch?v=", "")
+
+        conn = http.client.HTTPSConnection("yt-api.p.rapidapi.com")
+        headers = {
+            'x-rapidapi-key': "891de1fb87mshebcc31864318d1cp1bbc0cjsne1a72cf06d70",
+            'x-rapidapi-host': "yt-api.p.rapidapi.com"
+        }
+
+
+        conn.request("GET", f"/dl?id={url}", headers=headers)
+        data = json.loads(conn.getresponse().read().decode("utf-8"))
+
+        stream = next((fmt for fmt in data['formats'] if fmt.get('qualityLabel') == resolution), None)
+        
+        if not stream:
             return None, "Video with the specified resolution not found."
+
+        byte_stream = io.BytesIO()
+
+        video_url = stream['url']
+        response = requests.get(video_url, stream=True)
+        if response.status_code == 200:
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:
+                    byte_stream.write(chunk)
+        else:
+            return None, "Failed to download the video stream."
+
+        return byte_stream, None
     except Exception as e:
         return None, str(e)
 
 def get_video_info(url):
-    try:
-        yt = pytubefix.YouTube(url)
-        video_info = {
-            "title": yt.title,
-            "author": yt.author,
-            "length": yt.length,
-            "views": yt.views,
-            "thumbnail": yt.thumbnail_url,
-            "description": yt.description,
-            "publish_date": yt.publish_date
-        }
-        return video_info, None
-    except Exception as e:
-        print(e)
-        return None, str(e)
+    url = url.replace("https://www.youtube.com/watch?v=", "")
+
+    conn = http.client.HTTPSConnection("yt-api.p.rapidapi.com")
+
+    headers = {
+        'x-rapidapi-key': "891de1fb87mshebcc31864318d1cp1bbc0cjsne1a72cf06d70",
+        'x-rapidapi-host': "yt-api.p.rapidapi.com"
+    }
+
+
+    conn.request("GET", f"/dl?id={url}", headers=headers)
+    data = json.loads(conn.getresponse().read().decode("utf-8"))
+
+    resolutions = ["720p", "480p", "360p", "240p", "144p"]
+    available_resolutions = [stream['qualityLabel'] for stream in data['formats'] if 'qualityLabel' in stream]
+
+    print(available_resolutions)
+
+    selected_resolution = None
+    for res in resolutions:
+        if res in available_resolutions:
+            print(res)
+            selected_resolution = res
+            break
+
+    if not selected_resolution:
+        return None, "No suitable resolution found."
+    
+
+    if(data['status'] != 'OK'):
+        return None, data['message']
+    return {
+        'author': data['channelTitle'],
+        'description': data['description'],
+        'length': data['lengthSeconds'],
+        'title': data['title'],
+        'views': data['viewCount'],
+        'resolution': selected_resolution
+    }, None
+
+@app.route('/upload', methods=['POST'])
+async def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request."}), 400
+
+    file = request.files['file']
+    
+    if not file.mimetype.startswith(('audio/', 'video/')):
+        return jsonify({"error": "Uploaded file is not a music or video file."}), 400
+    
+    if file.content_length > 200 * 1024 * 1024:  # 200 MB
+        return jsonify({"error": "File size exceeds the 200MB limit."}), 400
+
+    if file.filename == '':
+        return jsonify({"error": "No selected file."}), 400
+
+    if file:
+        filename = secure_filename(file.filename)
+        byte_stream = file.read()
+        
+        path = f'user-uploaded-content/{uuid4()}-{filename}'
+        if byte_stream:
+            await upload_file(byte_stream, path)
+
+        return jsonify({"message": "File successfully uploaded.", "file_path": path}), 200
+    else:
+        return jsonify({"error": "File upload failed."}), 500
+
 
 def is_valid_youtube_url(url):
     pattern = r"^(https?://)?(www\.)?youtube\.com/watch\?v=[\w-]+(&\S*)?$"
