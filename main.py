@@ -3,12 +3,14 @@ import io
 import ssl
 from uuid import uuid4
 from quart import Quart, request, jsonify
-from pytube import YouTube
+import pytube
 import re
 import os
 from waitress import serve
 from quart_cors import cors
 
+
+pytube.innertube._default_clients['ANDROID_MUSIC']=pytube.innertube._default_clients['WEB']
 
 from firebase import FIREBASE_CDN_URL, upload_file
 
@@ -25,7 +27,7 @@ async def download_and_upload_video(url, resolution, path):
 
 async def download_video(url, resolution):
     try:
-        yt = YouTube(url)
+        yt = pytube.YouTube(url)
         stream = yt.streams.filter(progressive=True, file_extension='mp4', resolution=resolution).first()
         if stream:
             byte_stream = io.BytesIO()
@@ -39,7 +41,7 @@ async def download_video(url, resolution):
 
 def get_video_info(url):
     try:
-        yt = YouTube(url)
+        yt = pytube.YouTube(url)
         video_info = {
             "title": yt.title,
             "author": yt.author,
