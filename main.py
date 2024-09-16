@@ -93,7 +93,7 @@ def get_video_info(url):
     return {
         'author': data['channelTitle'],
         'description': data['description'],
-        'length': data['lengthSeconds'],
+        'length': int(data['lengthSeconds']),
         'title': data['title'],
         'views': data['viewCount'],
         'thumbnail': data['thumbnail'][len(data['thumbnail']) -1]['url'],
