@@ -40,7 +40,7 @@ async def download_video(url, resolution):
         data = json.loads(conn.getresponse().read().decode("utf-8"))
 
         stream = next((fmt for fmt in data['formats'] if fmt.get('qualityLabel') == resolution), None)
-        
+
         if not stream:
             return None, "Video with the specified resolution not found."
 
@@ -87,7 +87,6 @@ def get_video_info(url):
 
     if not selected_resolution:
         return None, "No suitable resolution found."
-    
 
     if(data['status'] != 'OK'):
         return None, data['message']
@@ -97,6 +96,7 @@ def get_video_info(url):
         'length': data['lengthSeconds'],
         'title': data['title'],
         'views': data['viewCount'],
+        'thumbnail': data['thumbnail'][len(data['thumbnail']) -1]['url'],
         'resolution': selected_resolution
     }, None
 
@@ -106,10 +106,10 @@ async def upload_file():
         return jsonify({"error": "No file part in the request."}), 400
 
     file = request.files['file']
-    
+
     if not file.mimetype.startswith(('audio/', 'video/')):
         return jsonify({"error": "Uploaded file is not a music or video file."}), 400
-    
+
     if file.content_length > 200 * 1024 * 1024:  # 200 MB
         return jsonify({"error": "File size exceeds the 200MB limit."}), 400
 
@@ -119,7 +119,7 @@ async def upload_file():
     if file:
         filename = secure_filename(file.filename)
         byte_stream = file.read()
-        
+
         path = f'user-uploaded-content/{uuid4()}-{filename}'
         if byte_stream:
             await upload_file(byte_stream, path)
