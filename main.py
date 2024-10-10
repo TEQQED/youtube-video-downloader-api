@@ -12,7 +12,7 @@ from waitress import serve
 from quart_cors import cors
 import http.client
 from werkzeug.utils import secure_filename
-from firebase import FIREBASE_CDN_URL, upload_file
+from firebase import FIREBASE_CDN_URL, upload_file as upload_file_firebase
 
 app = Quart(__name__)
 app = cors(app, allow_origin="*")
@@ -102,10 +102,12 @@ def get_video_info(url):
 
 @app.route('/upload', methods=['POST'])
 async def upload_file():
-    if 'file' not in request.files:
+    files = await request.files
+
+    if 'file' not in files:
         return jsonify({"error": "No file part in the request."}), 400
 
-    file = request.files['file']
+    file = files.get("file")
 
     if not file.mimetype.startswith(('audio/', 'video/')):
         return jsonify({"error": "Uploaded file is not a music or video file."}), 400
@@ -122,7 +124,7 @@ async def upload_file():
 
         path = f'user-uploaded-content/{uuid4()}-{filename}'
         if byte_stream:
-            await upload_file(byte_stream, path)
+            await upload_file_firebase(byte_stream, path)
 
         return jsonify({"message": "File successfully uploaded.", "file_path": path}), 200
     else:
