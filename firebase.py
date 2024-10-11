@@ -37,3 +37,11 @@ async def upload_file(byte_stream, path):
   blob.upload_from_string(byte_stream, content_type="video/mp4")
   print(blob.public_url)
   blob.make_public()
+
+async def upload_downloaded_yt_file(byte_stream, path):
+  bucket = storage.bucket()
+  blob = bucket.blob(path)
+
+  blob.upload_from_file(byte_stream, content_type="video/mp4")
+  print(blob.public_url)
+  blob.make_public()
