@@ -4,15 +4,13 @@ import json
 import ssl
 from uuid import uuid4
 from quart import Quart, request, jsonify
-import pytubefix
+from pytubefix import YouTube
 import re
 import os
-import requests
-from waitress import serve
 from quart_cors import cors
 import http.client
 from werkzeug.utils import secure_filename
-from firebase import FIREBASE_CDN_URL, upload_file
+from firebase import FIREBASE_CDN_URL, upload_file as upload_file_firebase, upload_downloaded_yt_file
 
 app = Quart(__name__)
 app = cors(app, allow_origin="*")
@@ -20,42 +18,21 @@ app = cors(app, allow_origin="*")
 async def download_and_upload_video(url, resolution, path):
     byte_stream, error_message = await download_video(url, resolution)
     if byte_stream:
-        await upload_file(byte_stream, path)
+        await upload_downloaded_yt_file(byte_stream, path)
 
     if(error_message):
         print(error_message)
 
 async def download_video(url, resolution):
     try:
-        url = url.replace("https://www.youtube.com/watch?v=", "")
-
-        conn = http.client.HTTPSConnection("yt-api.p.rapidapi.com")
-        headers = {
-            'x-rapidapi-key': "891de1fb87mshebcc31864318d1cp1bbc0cjsne1a72cf06d70",
-            'x-rapidapi-host': "yt-api.p.rapidapi.com"
-        }
-
-
-        conn.request("GET", f"/dl?id={url}", headers=headers)
-        data = json.loads(conn.getresponse().read().decode("utf-8"))
-
-        stream = next((fmt for fmt in data['formats'] if fmt.get('qualityLabel') == resolution), None)
-
-        if not stream:
-            return None, "Video with the specified resolution not found."
-
-        byte_stream = io.BytesIO()
-
-        video_url = stream['url']
-        response = requests.get(video_url, stream=True)
-        if response.status_code == 200:
-            for chunk in response.iter_content(chunk_size=1024):
-                if chunk:
-                    byte_stream.write(chunk)
-        else:
-            return None, "Failed to download the video stream."
-
-        return byte_stream, None
+        # https://github.com/JuanBindez/pytubefix/issues/242
+        stream = YouTube(url, client="IOS").streams.filter(
+            progressive=False, subtype="mp4", resolution=resolution
+        ).first()
+        video_bytes = io.BytesIO()
+        stream.stream_to_buffer(video_bytes)
+        video_bytes.seek(0)
+        return video_bytes, None
     except Exception as e:
         return None, str(e)
 
@@ -102,10 +79,12 @@ def get_video_info(url):
 
 @app.route('/upload', methods=['POST'])
 async def upload_file():
-    if 'file' not in request.files:
+    files = await request.files
+
+    if 'file' not in files:
         return jsonify({"error": "No file part in the request."}), 400
 
-    file = request.files['file']
+    file = files.get("file")
 
     if not file.mimetype.startswith(('audio/', 'video/')):
         return jsonify({"error": "Uploaded file is not a music or video file."}), 400
@@ -122,9 +101,9 @@ async def upload_file():
 
         path = f'user-uploaded-content/{uuid4()}-{filename}'
         if byte_stream:
-            await upload_file(byte_stream, path)
+            await upload_file_firebase(byte_stream, path)
 
-        return jsonify({"message": "File successfully uploaded.", "file_path": path}), 200
+        return jsonify({"message": "File successfully uploaded.", "file_path": FIREBASE_CDN_URL(path)}), 200
     else:
         return jsonify({"error": "File upload failed."}), 500
 
