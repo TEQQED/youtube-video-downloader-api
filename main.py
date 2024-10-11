@@ -12,8 +12,11 @@ import http.client
 from werkzeug.utils import secure_filename
 from firebase import FIREBASE_CDN_URL, upload_file as upload_file_firebase, upload_downloaded_yt_file
 
+max_content_mb = 200
+
 app = Quart(__name__)
 app = cors(app, allow_origin="*")
+app.config['MAX_CONTENT_LENGTH'] = max_content_mb * 1024 * 1024 
 
 async def download_and_upload_video(url, resolution, path):
     byte_stream, error_message = await download_video(url, resolution)
