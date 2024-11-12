@@ -83,7 +83,8 @@ def get_video_info(url):
 @app.route('/upload', methods=['POST'])
 async def upload_file():
     files = await request.files
-    product_id = request.form.get('product_id')
+    form = await request.form
+    product_id = form.get('product_id')
     pid = f'___pid___{product_id}___pid___' if product_id else ''
 
     if 'file' not in files:
