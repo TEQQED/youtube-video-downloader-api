@@ -83,6 +83,8 @@ def get_video_info(url):
 @app.route('/upload', methods=['POST'])
 async def upload_file():
     files = await request.files
+    product_id = request.form.get('product_id')
+    pid = f'___pid___{product_id}___pid___' if product_id else ''
 
     if 'file' not in files:
         return jsonify({"error": "No file part in the request."}), 400
@@ -102,7 +104,7 @@ async def upload_file():
         filename = secure_filename(file.filename)
         byte_stream = file.read()
 
-        path = f'user-uploaded-content/{uuid4()}-{filename}'
+        path = f'user-uploaded-content/{pid}{uuid4()}-{filename}'
         if byte_stream:
             await upload_file_firebase(byte_stream, path)
 
@@ -119,6 +121,8 @@ def is_valid_youtube_url(url):
 async def download_by_resolution(resolution):
     data = await request.get_json()
     url = data.get('url')
+    product_id = data.get('product_id')
+    pid = f'___pid___{product_id}___pid___' if product_id else ''
 
     if not url:
         return jsonify({"error": "Missing 'url' parameter in the request body."}), 400
@@ -126,7 +130,7 @@ async def download_by_resolution(resolution):
     if not is_valid_youtube_url(url):
         return jsonify({"error": "Invalid YouTube URL."}), 400
 
-    path = f'youtube-videos/{str(uuid4())}.mp4'
+    path = f'youtube-videos/{pid}{str(uuid4())}.mp4'
 
     asyncio.create_task(download_and_upload_video(url, resolution, path))
 
